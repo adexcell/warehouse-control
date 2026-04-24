@@ -1,15 +1,31 @@
 package main
 
 import (
-	"github.com/adexcell/warehouse-control/internal/item"
-	"github.com/wb-go/wbf/ginext"
-	"github.com/wb-go/wbf/zlog"
+	"context"
+
+	"github.com/adexcell/warehouse-control/config"
+	"github.com/adexcell/warehouse-control/internal/app"
+	"github.com/adexcell/warehouse-control/pkg/logger"
+	"github.com/adexcell/warehouse-control/pkg/otel"
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
-	zlog.Init()
+	c, err := config.New()
+	if err != nil {
+		log.Fatal().Err(err).Msg("config.New")
+	}
 
-	httprouter := ginext.New("debug")
-	itemHandler := item.New()
-	itemHandler.Register(httprouter)
+	logger.Init(c.Logger)
+
+	ctx := context.Background()
+
+	if err = otel.Init(ctx, c.OTEL); err != nil {
+		log.Error().Err(err).Msg("otel.Init")
+	}
+	defer otel.Close()
+
+	if err := app.Run(ctx, c); err != nil {
+		log.Error().Err(err).Msg("app.Run")
+	}
 }
